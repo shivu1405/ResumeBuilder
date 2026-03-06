@@ -1,0 +1,788 @@
+import { useState, useRef } from "react";
+
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap');`;
+
+const GlobalStyles = () => (
+  <style>{`
+    ${FONTS}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Outfit', sans-serif; background: #f5f0e8; color: #1c1917; }
+    :root {
+      --cream: #f5f0e8; --warm-white: #fefcf7; --charcoal: #1c1917;
+      --mid: #44403c; --muted: #78716c; --accent: #dc2626;
+      --border: #e7e2d8; --shadow: 0 4px 24px rgba(28,25,23,0.08);
+    }
+    .serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+    .mono  { font-family: 'DM Mono', monospace; }
+    input, textarea, select {
+      font-family: 'Outfit', sans-serif; width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--warm-white); color: var(--charcoal);
+      font-size: 14px; transition: border-color .2s, box-shadow .2s; outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(220,38,38,.08);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    button { cursor: pointer; font-family: 'Outfit', sans-serif; }
+    .btn-primary { background: var(--charcoal); color: var(--cream); border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; transition: transform .15s, background .2s; }
+    .btn-primary:hover { background: #292524; transform: translateY(-1px); }
+    .btn-accent { background: var(--accent); color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; transition: transform .15s, opacity .2s; }
+    .btn-accent:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: var(--mid); border: 1.5px solid var(--border); padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: border-color .2s, color .2s; }
+    .btn-ghost:hover { border-color: var(--charcoal); color: var(--charcoal); }
+    .card { background: var(--warm-white); border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp .4s ease forwards; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; display:inline-block; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .pulse { animation: pulse 1.5s ease infinite; }
+    @keyframes slideIn { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+    .slide-in { animation: slideIn .3s ease forwards; }
+    @keyframes progressBar { from{width:0%} to{width:85%} }
+    @media print {
+      body * { visibility: hidden; }
+      #resume-preview, #resume-preview * { visibility: visible; }
+      #resume-preview { position:fixed; inset:0; padding:0; border:none; box-shadow:none; background:white; }
+    }
+  `}</style>
+);
+
+// ─── EXAMPLE DATA ─────────────────────────────────────────────────────────────
+const EXAMPLE_RESUMES = [
+  {
+    label: "Software Engineering", emoji: "💻", color: "#2563eb", bg: "#eff6ff",
+    data: {
+      name:"Priya Sharma", email:"priya@gmail.com", phone:"+91 98765 43210",
+      location:"Bangalore, India", linkedin:"priyasharma-dev", portfolio:"github.com/priyasharma",
+      objective:"Passionate CS student with 2 internships at funded startups. Skilled in full-stack development, seeking SWE internship to build scalable systems.",
+      education:[{school:"IIT Bangalore",degree:"B.Tech",field:"Computer Science",gpa:"8.9/10",year:"2025",achievements:"Dean's List 3 semesters, Competitive Programming Club Lead"}],
+      experience:[
+        {company:"Razorpay",role:"Backend Intern",type:"Internship",duration:"May–Aug 2024",bullets:"Built payment reconciliation service reducing manual effort by 70%\nOptimized DB queries cutting API latency from 400ms to 60ms\nCollaborated with 8-person team shipping to 500K+ merchants"},
+        {company:"Startup Weekend",role:"Full Stack Dev",type:"Freelance",duration:"Jan 2024",bullets:"Developed MVP in 54 hours — won Best Tech award\nReact + Node.js + PostgreSQL stack"}
+      ],
+      projects:[
+        {name:"CodeCollab",tech:"React, WebSocket, Node.js",desc:"Real-time collaborative code editor used by 1,200 students"},
+        {name:"CampusEats",tech:"Flutter, Firebase",desc:"Food ordering app — 400+ daily active users"}
+      ],
+      skills:{technical:"JavaScript, TypeScript, React, Node.js, Python, SQL, Redis, Docker, Git",soft:"Leadership, Communication, Problem Solving",languages:"English (Fluent), Hindi (Native)",certifications:"AWS Cloud Practitioner 2024"}
+    }
+  },
+  {
+    label: "Marketing & Business", emoji: "📊", color: "#7c3aed", bg: "#f5f3ff",
+    data: {
+      name:"Arjun Mehta", email:"arjun@outlook.com", phone:"+91 87654 32109",
+      location:"Mumbai, India", linkedin:"arjunmehta-mba", portfolio:"arjunmehta.notion.site",
+      objective:"MBA aspirant with hands-on marketing experience across D2C brands and growth-stage startups. Data-driven with a track record of measurable ROI improvements.",
+      education:[{school:"NMIMS Mumbai",degree:"BBA",field:"Marketing",gpa:"3.8/4.0",year:"2024",achievements:"Best Marketing Campaign Award, Marketing Society President"}],
+      experience:[
+        {company:"Mamaearth",role:"Digital Marketing Intern",type:"Internship",duration:"Jun–Sep 2024",bullets:"Managed ₹15L monthly Meta Ads budget achieving 3.2x ROAS\nGrew Instagram following from 80K to 145K in 3 months\nLaunched influencer campaign generating ₹40L in attributed revenue"},
+        {company:"Zomato",role:"Growth Intern",type:"Internship",duration:"Dec 2023",bullets:"Analysed user cohorts reducing churn by 12%\nCreated 5 A/B tests for push notification copy"}
+      ],
+      projects:[{name:"BrandLens",tech:"Google Analytics, Tableau",desc:"Competitive analysis dashboard tracking 12 D2C brands"}],
+      skills:{technical:"Google Analytics, Meta Ads, SEO, Tableau, HubSpot, Canva, SQL",soft:"Creativity, Stakeholder Management, Storytelling",languages:"English (Fluent), Hindi (Native), Gujarati",certifications:"Google Analytics Certified, Meta Blueprint 2024"}
+    }
+  },
+  {
+    label: "Design / UI-UX", emoji: "🎨", color: "#db2777", bg: "#fdf2f8",
+    data: {
+      name:"Zara Ahmed", email:"zara.design@gmail.com", phone:"+91 76543 21098",
+      location:"Hyderabad, India", linkedin:"zaraahmed-ux", portfolio:"zara.framer.website",
+      objective:"Product designer with a fine arts background and 18 months of UX experience. Passionate about accessible, emotion-driven interfaces.",
+      education:[{school:"Srishti Manipal Institute",degree:"B.Des",field:"Interaction Design",gpa:"9.1/10",year:"2024",achievements:"Gold Medal, National Design Award Finalist"}],
+      experience:[
+        {company:"Swiggy",role:"Product Design Intern",type:"Internship",duration:"Mar–Aug 2024",bullets:"Redesigned checkout flow — A/B test showed 18% uplift in order completion\nCreated design system with 80+ components adopted org-wide\nConducted 30+ user interviews and 6 usability tests"},
+        {company:"NASSCOM",role:"UX Research Intern",type:"Internship",duration:"Nov 2023",bullets:"Mapped 12 enterprise user journeys for government tech portal"}
+      ],
+      projects:[
+        {name:"Mindful — Mental Health App",tech:"Figma, ProtoPie",desc:"End-to-end design with 3,000+ Figma community downloads"},
+        {name:"ReLeaf",tech:"Figma, After Effects",desc:"Award-winning sustainability app concept — ADC Young Guns shortlist"}
+      ],
+      skills:{technical:"Figma, Adobe XD, Illustrator, After Effects, Framer, Protopie, HTML/CSS",soft:"Empathy, Facilitation, Visual Thinking",languages:"English (Fluent), Urdu (Native), Telugu (Conversational)",certifications:"Google UX Design Certificate, IDF Member"}
+    }
+  }
+];
+
+const TEMPLATES = [
+  {id:"classic",name:"Classic ATS",  tag:"FREE",    tagC:"#15803d", tagB:"#dcfce7", desc:"Clean single-column"},
+  {id:"modern", name:"Modern Edge",  tag:"FREE",    tagC:"#15803d", tagB:"#dcfce7", desc:"Side-column layout"},
+  {id:"exec",   name:"Executive Pro",tag:"PREMIUM", tagC:"#a16207", tagB:"#fef9c3", desc:"Bold & premium"},
+  {id:"minimal",name:"Minimal Ink",  tag:"PREMIUM", tagC:"#a16207", tagB:"#fef9c3", desc:"Typography-forward"},
+];
+
+const defaultData = {
+  name:"",email:"",phone:"",location:"",linkedin:"",portfolio:"",objective:"",
+  education:[{school:"",degree:"",field:"",gpa:"",year:"",achievements:""}],
+  experience:[{company:"",role:"",type:"Internship",duration:"",bullets:""}],
+  projects:[{name:"",tech:"",desc:""}],
+  skills:{technical:"",soft:"",languages:"",certifications:""},
+};
+
+// ─── RESUME RENDERERS ─────────────────────────────────────────────────────────
+function ClassicResume({data}){
+  return (
+    <div style={{fontFamily:"Arial,sans-serif",fontSize:11,color:"#111",lineHeight:1.5,padding:32,background:"white",minHeight:500}}>
+      <div style={{borderBottom:"2px solid #111",paddingBottom:10,marginBottom:14}}>
+        <div style={{fontSize:22,fontWeight:700,letterSpacing:1}}>{data.name||"Your Name"}</div>
+        <div style={{fontSize:10,color:"#444",marginTop:4,display:"flex",gap:14,flexWrap:"wrap"}}>
+          {data.email&&<span>{data.email}</span>}{data.phone&&<span>{data.phone}</span>}
+          {data.location&&<span>{data.location}</span>}
+          {data.linkedin&&<span>linkedin.com/in/{data.linkedin}</span>}
+          {data.portfolio&&<span>{data.portfolio}</span>}
+        </div>
+      </div>
+      {data.objective&&<CSection title="OBJECTIVE"><p style={{fontSize:10.5,color:"#333"}}>{data.objective}</p></CSection>}
+      <CSection title="EDUCATION">
+        {data.education.map((e,i)=>e.school?(
+          <div key={i} style={{marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}><strong>{e.school}</strong><span style={{color:"#555"}}>{e.year}</span></div>
+            <div style={{color:"#444"}}>{e.degree}{e.field?` in ${e.field}`:""}{e.gpa?` — GPA: ${e.gpa}`:""}</div>
+            {e.achievements&&<div style={{color:"#555",fontSize:10}}>• {e.achievements}</div>}
+          </div>
+        ):null)}
+      </CSection>
+      {data.experience.some(e=>e.company)&&(
+        <CSection title="EXPERIENCE">
+          {data.experience.map((e,i)=>e.company?(
+            <div key={i} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}><strong>{e.role} — {e.company}</strong><span style={{color:"#555"}}>{e.duration}</span></div>
+              <div style={{fontSize:10,color:"#666",marginBottom:3}}>{e.type}</div>
+              {e.bullets&&e.bullets.split("\n").filter(Boolean).map((b,j)=><div key={j} style={{paddingLeft:12,color:"#333",fontSize:10.5}}>• {b}</div>)}
+            </div>
+          ):null)}
+        </CSection>
+      )}
+      {data.projects.some(p=>p.name)&&(
+        <CSection title="PROJECTS">
+          {data.projects.map((p,i)=>p.name?(
+            <div key={i} style={{marginBottom:8}}>
+              <strong>{p.name}</strong>{p.tech&&<span style={{color:"#555"}}> | {p.tech}</span>}
+              {p.desc&&<div style={{color:"#333",fontSize:10.5}}>• {p.desc}</div>}
+            </div>
+          ):null)}
+        </CSection>
+      )}
+      {(data.skills.technical||data.skills.soft)&&(
+        <CSection title="SKILLS">
+          {data.skills.technical&&<div><strong>Technical:</strong> {data.skills.technical}</div>}
+          {data.skills.soft&&<div><strong>Soft:</strong> {data.skills.soft}</div>}
+          {data.skills.languages&&<div><strong>Languages:</strong> {data.skills.languages}</div>}
+          {data.skills.certifications&&<div><strong>Certifications:</strong> {data.skills.certifications}</div>}
+        </CSection>
+      )}
+    </div>
+  );
+}
+function CSection({title,children}){
+  return <div style={{marginBottom:14}}><div style={{fontSize:11,fontWeight:700,letterSpacing:1.5,borderBottom:"1px solid #ccc",paddingBottom:2,marginBottom:6}}>{title}</div>{children}</div>;
+}
+
+function ModernResume({data}){
+  return (
+    <div style={{fontFamily:"Arial,sans-serif",fontSize:11,color:"#111",background:"white",display:"flex",minHeight:500}}>
+      <div style={{width:196,background:"#1c1917",color:"#f5f0e8",padding:"28px 16px",flexShrink:0}}>
+        <div style={{fontSize:17,fontWeight:700,lineHeight:1.2,marginBottom:4}}>{data.name||"Your Name"}</div>
+        <div style={{fontSize:8.5,color:"#a8a29e",letterSpacing:1,marginBottom:18}}>STUDENT RESUME</div>
+        <MSide title="CONTACT">
+          {data.email&&<MI l="Email" v={data.email}/>}{data.phone&&<MI l="Phone" v={data.phone}/>}
+          {data.location&&<MI l="Location" v={data.location}/>}{data.linkedin&&<MI l="LinkedIn" v={data.linkedin}/>}
+          {data.portfolio&&<MI l="Portfolio" v={data.portfolio}/>}
+        </MSide>
+        {data.skills.technical&&(
+          <MSide title="SKILLS">
+            {data.skills.technical.split(",").map((s,i)=><div key={i} style={{fontSize:9,padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.07)",color:"#d6d3d1"}}>{s.trim()}</div>)}
+          </MSide>
+        )}
+        {data.skills.certifications&&<MSide title="CERTS"><div style={{fontSize:9,color:"#d6d3d1"}}>{data.skills.certifications}</div></MSide>}
+      </div>
+      <div style={{flex:1,padding:"28px 22px"}}>
+        {data.objective&&<div style={{marginBottom:14,paddingBottom:10,borderBottom:"1px solid #e7e2d8"}}><div style={{fontSize:8.5,fontWeight:700,letterSpacing:1.5,color:"#dc2626",marginBottom:3}}>PROFILE</div><p style={{fontSize:10.5,color:"#44403c",lineHeight:1.6}}>{data.objective}</p></div>}
+        {data.education.some(e=>e.school)&&(<MM title="EDUCATION">{data.education.map((e,i)=>e.school?(<div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between"}}><strong>{e.school}</strong><span style={{fontSize:9,color:"#78716c",background:"#f5f0e8",padding:"1px 7px",borderRadius:4}}>{e.year}</span></div><div style={{color:"#44403c",fontSize:10}}>{e.degree}{e.field?` · ${e.field}`:""}{e.gpa?` · GPA ${e.gpa}`:""}</div></div>):null)}</MM>)}
+        {data.experience.some(e=>e.company)&&(<MM title="EXPERIENCE">{data.experience.map((e,i)=>e.company?(<div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between"}}><strong>{e.role}</strong><span style={{fontSize:9,color:"#78716c"}}>{e.duration}</span></div><div style={{fontSize:9.5,color:"#dc2626",marginBottom:2}}>{e.company} · {e.type}</div>{e.bullets&&e.bullets.split("\n").filter(Boolean).map((b,j)=><div key={j} style={{paddingLeft:10,color:"#333",fontSize:10}}>▸ {b}</div>)}</div>):null)}</MM>)}
+        {data.projects.some(p=>p.name)&&(<MM title="PROJECTS">{data.projects.map((p,i)=>p.name?(<div key={i} style={{marginBottom:7}}><strong>{p.name}</strong>{p.tech&&<span style={{fontSize:9.5,color:"#78716c"}}> · {p.tech}</span>}{p.desc&&<div style={{color:"#333",fontSize:10,paddingLeft:10}}>▸ {p.desc}</div>}</div>):null)}</MM>)}
+      </div>
+    </div>
+  );
+}
+function MSide({title,children}){return <div style={{marginBottom:16}}><div style={{fontSize:8,letterSpacing:1.5,color:"#dc2626",fontWeight:700,marginBottom:5}}>{title}</div>{children}</div>;}
+function MI({l,v}){return <div style={{marginBottom:5}}><div style={{fontSize:7.5,color:"#78716c"}}>{l}</div><div style={{fontSize:9,color:"#e7e2d8",wordBreak:"break-all"}}>{v}</div></div>;}
+function MM({title,children}){return <div style={{marginBottom:13}}><div style={{fontSize:8.5,fontWeight:700,letterSpacing:1.5,color:"#dc2626",borderBottom:"1.5px solid #fee2e2",paddingBottom:2,marginBottom:7}}>{title}</div>{children}</div>;}
+
+function PremiumLocked({name}){
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:340,background:"white",gap:10}}>
+    <div style={{fontSize:32}}>⭐</div>
+    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600}}>{name}</div>
+    <div style={{fontSize:12,color:"#78716c"}}>Unlock with Premium</div>
+    <button className="btn-accent" style={{marginTop:6,padding:"9px 22px"}}>Upgrade — ₹199/mo</button>
+  </div>;
+}
+
+// ─── ATS SCORE ────────────────────────────────────────────────────────────────
+function ATSScore({data}){
+  const checks=[
+    {l:"Contact info complete",p:!!(data.email&&data.phone)},
+    {l:"Summary / objective",p:!!data.objective},
+    {l:"Education filled",p:data.education.some(e=>e.school)},
+    {l:"Experience / Internship",p:data.experience.some(e=>e.company)},
+    {l:"Technical skills",p:!!data.skills.technical},
+    {l:"Projects included",p:data.projects.some(p=>p.name)},
+  ];
+  const score=Math.round((checks.filter(c=>c.p).length/checks.length)*100);
+  const col=score>=80?"#16a34a":score>=50?"#d97706":"#dc2626";
+  return (
+    <div className="card" style={{marginTop:20,padding:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div>
+          <p className="mono" style={{fontSize:10,color:"#78716c",letterSpacing:1}}>ATS COMPATIBILITY</p>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,color:col}}>{score}<span style={{fontSize:14,fontWeight:400}}>/100</span></div>
+        </div>
+        <div style={{width:60,height:60,borderRadius:"50%",border:`4px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:col}}>
+          {score>=80?"✓":score>=50?"~":"!"}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        {checks.map((c,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:c.p?"#44403c":"#a8a29e"}}><span style={{color:c.p?"#16a34a":"#dc2626",fontSize:14}}>{c.p?"✓":"○"}</span>{c.l}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ─── FORM HELPERS ─────────────────────────────────────────────────────────────
+function FF({label,hint,children}){
+  return <div style={{marginBottom:16}}><label style={{display:"block",fontSize:12,fontWeight:600,color:"#44403c",marginBottom:5}}>{label}{hint&&<span style={{fontWeight:400,color:"#a8a29e",marginLeft:6}}>{hint}</span>}</label>{children}</div>;
+}
+function G2({children}){return <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{children}</div>;}
+function SH({icon,title,sub}){return <div style={{marginBottom:20}}><div style={{fontSize:26,marginBottom:4}}>{icon}</div><h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:"#1c1917",lineHeight:1.1}}>{title}</h2><p style={{fontSize:13,color:"#78716c",marginTop:4}}>{sub}</p></div>;}
+function IB({children}){return <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#15803d",marginBottom:16}}>💡 {children}</div>;}
+
+// ─── STEP FORMS ───────────────────────────────────────────────────────────────
+function PersonalStep({data,set}){
+  return <div>
+    <SH icon="👤" title="Personal Info" sub="Let's start with the basics"/>
+    <FF label="Full Name *"><input value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Jane Doe"/></FF>
+    <G2><FF label="Email *"><input type="email" value={data.email} onChange={e=>set("email",e.target.value)} placeholder="jane@email.com"/></FF><FF label="Phone"><input value={data.phone} onChange={e=>set("phone",e.target.value)} placeholder="+91 98765 43210"/></FF></G2>
+    <G2><FF label="Location"><input value={data.location} onChange={e=>set("location",e.target.value)} placeholder="Mumbai, India"/></FF><FF label="LinkedIn" hint="username"><input value={data.linkedin} onChange={e=>set("linkedin",e.target.value)} placeholder="janedoe"/></FF></G2>
+    <FF label="Portfolio / GitHub"><input value={data.portfolio} onChange={e=>set("portfolio",e.target.value)} placeholder="github.com/janedoe"/></FF>
+    <FF label="Professional Summary" hint="2–3 sentences"><textarea value={data.objective} onChange={e=>set("objective",e.target.value)} placeholder="Ambitious CS student with a passion for building scalable web applications…"/></FF>
+  </div>;
+}
+function EducationStep({data,sn,add,rem}){
+  return <div>
+    <SH icon="🎓" title="Education" sub="Add your academic background"/>
+    {data.education.map((e,i)=>(
+      <div key={i} className="card" style={{padding:16,marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}><span style={{fontSize:12,fontWeight:600,color:"#44403c"}}>Institution {i+1}</span>{i>0&&<button onClick={()=>rem("education",i)} style={{background:"none",border:"none",color:"#dc2626",fontSize:12}}>Remove</button>}</div>
+        <FF label="School / University"><input value={e.school} onChange={ev=>sn("education",i,"school",ev.target.value)} placeholder="IIT Mumbai"/></FF>
+        <G2><FF label="Degree"><input value={e.degree} onChange={ev=>sn("education",i,"degree",ev.target.value)} placeholder="B.Tech"/></FF><FF label="Field of Study"><input value={e.field} onChange={ev=>sn("education",i,"field",ev.target.value)} placeholder="Computer Science"/></FF></G2>
+        <G2><FF label="Graduation Year"><input value={e.year} onChange={ev=>sn("education",i,"year",ev.target.value)} placeholder="2025"/></FF><FF label="CGPA / GPA"><input value={e.gpa} onChange={ev=>sn("education",i,"gpa",ev.target.value)} placeholder="8.7 / 10"/></FF></G2>
+        <FF label="Achievements" hint="optional"><input value={e.achievements} onChange={ev=>sn("education",i,"achievements",ev.target.value)} placeholder="Dean's List, Algorithms, ML…"/></FF>
+      </div>
+    ))}
+    <button className="btn-ghost" style={{width:"100%",textAlign:"center"}} onClick={()=>add("education",{school:"",degree:"",field:"",gpa:"",year:"",achievements:""})}>+ Add Another Degree</button>
+  </div>;
+}
+function ExperienceStep({data,sn,add,rem}){
+  const types=["Internship","Part-time Job","Full-time","Freelance","Research","Volunteer"];
+  return <div>
+    <SH icon="💼" title="Experience & Internships" sub="Add your work history"/>
+    <IB>Start each bullet with an action verb (Built, Led, Developed, Reduced…) and include metrics where possible.</IB>
+    {data.experience.map((e,i)=>(
+      <div key={i} className="card" style={{padding:16,marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+          <span style={{fontSize:12,fontWeight:600,color:"#44403c"}}><span style={{background:"#fee2e2",color:"#b91c1c",padding:"2px 8px",borderRadius:4,fontSize:10,marginRight:6}}>{e.type||"Internship"}</span>Experience {i+1}</span>
+          {i>0&&<button onClick={()=>rem("experience",i)} style={{background:"none",border:"none",color:"#dc2626",fontSize:12}}>Remove</button>}
+        </div>
+        <G2><FF label="Company"><input value={e.company} onChange={ev=>sn("experience",i,"company",ev.target.value)} placeholder="Google"/></FF><FF label="Your Role"><input value={e.role} onChange={ev=>sn("experience",i,"role",ev.target.value)} placeholder="SWE Intern"/></FF></G2>
+        <G2><FF label="Type"><select value={e.type} onChange={ev=>sn("experience",i,"type",ev.target.value)}>{types.map(t=><option key={t}>{t}</option>)}</select></FF><FF label="Duration"><input value={e.duration} onChange={ev=>sn("experience",i,"duration",ev.target.value)} placeholder="May–Aug 2024"/></FF></G2>
+        <FF label="Key Responsibilities" hint="one per line"><textarea value={e.bullets} onChange={ev=>sn("experience",i,"bullets",ev.target.value)} placeholder={"Built REST API reducing latency by 40%\nCollaborated with 5-person agile team"} style={{minHeight:80}}/></FF>
+      </div>
+    ))}
+    <button className="btn-ghost" style={{width:"100%",textAlign:"center"}} onClick={()=>add("experience",{company:"",role:"",type:"Internship",duration:"",bullets:""})}>+ Add Experience</button>
+    <div style={{marginTop:24}}>
+      <SH icon="🚀" title="Projects" sub="Showcase what you've built"/>
+      {data.projects.map((p,i)=>(
+        <div key={i} className="card" style={{padding:16,marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontSize:12,fontWeight:600}}>Project {i+1}</span>{i>0&&<button onClick={()=>rem("projects",i)} style={{background:"none",border:"none",color:"#dc2626",fontSize:12}}>Remove</button>}</div>
+          <G2><FF label="Project Name"><input value={p.name} onChange={ev=>sn("projects",i,"name",ev.target.value)} placeholder="AI Resume Builder"/></FF><FF label="Tech Stack"><input value={p.tech} onChange={ev=>sn("projects",i,"tech",ev.target.value)} placeholder="React, Node, PostgreSQL"/></FF></G2>
+          <FF label="Description"><textarea value={p.desc} onChange={ev=>sn("projects",i,"desc",ev.target.value)} placeholder="Built a full-stack web app…" style={{minHeight:60}}/></FF>
+        </div>
+      ))}
+      <button className="btn-ghost" style={{width:"100%",textAlign:"center"}} onClick={()=>add("projects",{name:"",tech:"",desc:""})}>+ Add Project</button>
+    </div>
+  </div>;
+}
+function SkillsStep({data,set}){
+  const sk=(k,v)=>set("skills",{...data.skills,[k]:v});
+  return <div>
+    <SH icon="⚡" title="Skills & Certifications" sub="Highlight your capabilities"/>
+    <FF label="Technical Skills" hint="comma-separated"><textarea value={data.skills.technical} onChange={e=>sk("technical",e.target.value)} placeholder="JavaScript, React, Python, SQL, Git…" style={{minHeight:70}}/></FF>
+    <FF label="Soft Skills" hint="comma-separated"><input value={data.skills.soft} onChange={e=>sk("soft",e.target.value)} placeholder="Leadership, Team Collaboration, Public Speaking"/></FF>
+    <FF label="Languages"><input value={data.skills.languages} onChange={e=>sk("languages",e.target.value)} placeholder="English (Fluent), Hindi (Native)"/></FF>
+    <FF label="Certifications & Awards"><textarea value={data.skills.certifications} onChange={e=>sk("certifications",e.target.value)} placeholder={"AWS Cloud Practitioner (2024)\nGoogle Analytics Certificate"}/></FF>
+  </div>;
+}
+function ExportStep({template,setTemplate,onDownload,onLinkedIn}){
+  return <div>
+    <SH icon="✨" title="Template & Export" sub="Choose your style and download"/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+      {TEMPLATES.map(t=>(
+        <button key={t.id} onClick={()=>setTemplate(t.id)} style={{padding:14,borderRadius:10,textAlign:"left",border:`2px solid ${template===t.id?"#1c1917":"var(--border)"}`,background:template===t.id?"#1c1917":"white",color:template===t.id?"white":"#1c1917",transition:"all .2s"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+            <span style={{fontSize:13,fontWeight:600}}>{t.name}</span>
+            <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:100,background:t.tagB,color:t.tagC}}>{t.tag}</span>
+          </div>
+          <div style={{fontSize:11,opacity:.7}}>{t.desc}</div>
+        </button>
+      ))}
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <button className="btn-accent" style={{width:"100%",padding:14,fontSize:15}} onClick={onDownload}>↓ Download as PDF</button>
+      <button className="btn-primary" style={{width:"100%",padding:14,fontSize:15}} onClick={onLinkedIn}>in Copy LinkedIn Summary</button>
+      <button className="btn-ghost" style={{width:"100%",padding:14,fontSize:14,color:"#78716c"}} onClick={()=>window.print()}>🖨 Print Resume</button>
+    </div>
+    <div style={{marginTop:20,padding:16,background:"#fef9c3",border:"1px solid #fde047",borderRadius:12}}>
+      <p style={{fontSize:12,color:"#92400e",fontWeight:600,marginBottom:4}}>💡 ATS Tips</p>
+      <ul style={{fontSize:11,color:"#78350f",paddingLeft:16,lineHeight:1.9}}>
+        <li>Use standard section headings (Experience, Education, Skills)</li>
+        <li>Mirror keywords from the job description</li>
+        <li>Avoid graphics/tables/columns in ATS version</li>
+        <li>Upload as PDF or .docx</li>
+      </ul>
+    </div>
+  </div>;
+}
+
+// ─── AI UPLOADER MODAL ────────────────────────────────────────────────────────
+const PARSE_STEPS = [
+  "Reading your file…",
+  "Extracting text content…",
+  "AI is analysing your resume…",
+  "Structuring education & experience…",
+  "Finalising skills & projects…",
+  "Polishing output…",
+];
+
+function AIUploader({onImport,onClose}){
+  const [status,setStatus] = useState("idle");
+  const [msg,setMsg]       = useState("");
+  const [prog,setProg]     = useState(0);
+  const [dragOver,setDO]   = useState(false);
+  const fileRef = useRef();
+  const tickRef = useRef();
+
+  function fileToBase64(file){
+    return new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=()=>res(r.result.split(",")[1]);
+      r.onerror=()=>rej(new Error("Read failed"));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function handleFile(file){
+    if(!file) return;
+    const ext=file.name.split(".").pop().toLowerCase();
+    if(!["pdf","doc","docx","txt"].includes(ext)){setStatus("error");setMsg("Unsupported file. Please upload PDF, DOCX, or TXT.");return;}
+
+    setStatus("loading"); setMsg(PARSE_STEPS[0]); setProg(5);
+    let si=0;
+    tickRef.current=setInterval(()=>{
+      si=Math.min(si+1,PARSE_STEPS.length-1);
+      setMsg(PARSE_STEPS[si]);
+      setProg(p=>Math.min(p+14,88));
+    },1800);
+
+    try {
+      const base64=await fileToBase64(file);
+      const isText=ext==="txt";
+      const mediaType=ext==="pdf"?"application/pdf":"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+      const userContent = isText
+        ? [{type:"text",text:`Extract resume data and return ONLY valid JSON:\n\n${atob(base64)}`}]
+        : [
+            {type:"document",source:{type:"base64",media_type:mediaType,data:base64}},
+            {type:"text",text:`Extract all resume data from this document. Return ONLY a valid JSON object — no markdown, no backticks, no explanation — matching this exact schema:
+{"name":"","email":"","phone":"","location":"","linkedin":"","portfolio":"","objective":"","education":[{"school":"","degree":"","field":"","gpa":"","year":"","achievements":""}],"experience":[{"company":"","role":"","type":"Internship","duration":"","bullets":""}],"projects":[{"name":"","tech":"","desc":""}],"skills":{"technical":"","soft":"","languages":"","certifications":""}}`}
+          ];
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:2000,
+          system:`You are an expert resume parser. Extract structured data and return ONLY valid JSON.
+Rules:
+- bullets: newline-separated strings, no bullet symbols
+- experience type must be one of: Internship, Part-time Job, Full-time, Freelance, Research, Volunteer
+- skills fields: comma-separated strings
+- Return ONLY the JSON object, nothing else`,
+          messages:[{role:"user",content:userContent}]
+        })
+      });
+
+      clearInterval(tickRef.current);
+      const json=await resp.json();
+      if(json.error) throw new Error(json.error.message);
+
+      const raw=json.content?.map(b=>b.text||"").join("").trim();
+      const clean=raw.replace(/^```json\s*/,"").replace(/```\s*$/,"").trim();
+      const parsed=JSON.parse(clean);
+
+      const merged={
+        ...defaultData,...parsed,
+        education:(parsed.education||[]).length?parsed.education:defaultData.education,
+        experience:(parsed.experience||[]).length?parsed.experience:defaultData.experience,
+        projects:(parsed.projects||[]).length?parsed.projects:defaultData.projects,
+        skills:{...defaultData.skills,...(parsed.skills||{})}
+      };
+
+      setProg(100); setStatus("done"); setMsg("Resume imported successfully!");
+      setTimeout(()=>{onImport(merged);onClose();},1200);
+
+    } catch(err){
+      clearInterval(tickRef.current);
+      console.error(err);
+      setStatus("error");
+      setMsg("Could not parse the resume. Try a different file or fill in manually.");
+    }
+  }
+
+  const onDrop=e=>{e.preventDefault();setDO(false);handleFile(e.dataTransfer.files[0]);};
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="slide-in" style={{background:"white",borderRadius:20,padding:36,maxWidth:520,width:"100%",position:"relative"}}>
+        <button onClick={onClose} style={{position:"absolute",top:16,right:20,background:"none",border:"none",fontSize:24,color:"#78716c",lineHeight:1,cursor:"pointer"}}>×</button>
+
+        <div style={{marginBottom:24}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:30,fontWeight:700,color:"#1c1917"}}>Import Your Resume</div>
+          <p style={{fontSize:14,color:"#78716c",marginTop:4}}>Upload a PDF or Word doc — AI extracts and auto-fills all fields instantly.</p>
+        </div>
+
+        {status==="idle"&&(
+          <>
+            <div
+              onDragOver={e=>{e.preventDefault();setDO(true);}}
+              onDragLeave={()=>setDO(false)}
+              onDrop={onDrop}
+              onClick={()=>fileRef.current.click()}
+              style={{border:`2px dashed ${dragOver?"#dc2626":"#e7e2d8"}`,borderRadius:14,padding:"40px 20px",textAlign:"center",cursor:"pointer",background:dragOver?"#fef2f2":"#fafaf9",transition:"all .2s"}}>
+              <div style={{fontSize:44,marginBottom:12}}>📄</div>
+              <div style={{fontSize:16,fontWeight:600,color:"#1c1917",marginBottom:6}}>Drop your resume here</div>
+              <div style={{fontSize:13,color:"#78716c",marginBottom:16}}>or click to browse files</div>
+              <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+                {["PDF","DOCX","TXT"].map(f=><span key={f} style={{padding:"3px 10px",borderRadius:100,fontSize:11,fontWeight:700,background:"#f5f0e8",color:"#78716c",letterSpacing:.5}}>{f}</span>)}
+              </div>
+            </div>
+            <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+
+            <div style={{marginTop:20,padding:"14px 16px",background:"#eff6ff",borderRadius:10,border:"1px solid #bfdbfe"}}>
+              <p style={{fontSize:12,color:"#1e40af",fontWeight:600,marginBottom:4}}>🤖 How AI Import Works</p>
+              <p style={{fontSize:12,color:"#3730a3",lineHeight:1.7}}>Our AI reads your existing resume and automatically fills in all form fields — name, experience, education, skills, projects and more. You can then edit anything before downloading your polished new resume.</p>
+            </div>
+          </>
+        )}
+
+        {status==="loading"&&(
+          <div style={{textAlign:"center",padding:"36px 20px"}}>
+            <div style={{fontSize:48,marginBottom:16}} className="spin">⚙️</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600,marginBottom:8}}>Processing Resume…</div>
+            <p style={{fontSize:14,color:"#78716c",marginBottom:20}} className="pulse">{msg}</p>
+            <div style={{height:6,background:"#f5f0e8",borderRadius:100,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${prog}%`,background:"linear-gradient(90deg,#dc2626,#f87171)",borderRadius:100,transition:"width .6s ease"}}/>
+            </div>
+            <p style={{fontSize:11,color:"#a8a29e",marginTop:8}}>{prog}% complete</p>
+          </div>
+        )}
+
+        {status==="done"&&(
+          <div style={{textAlign:"center",padding:"36px 20px"}}>
+            <div style={{fontSize:52,marginBottom:14}}>✅</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:"#16a34a"}}>Imported Successfully!</div>
+            <p style={{fontSize:14,color:"#78716c",marginTop:6}}>Your resume data has been extracted. Loading your builder…</p>
+          </div>
+        )}
+
+        {status==="error"&&(
+          <div style={{textAlign:"center",padding:"28px 20px"}}>
+            <div style={{fontSize:44,marginBottom:12}}>😕</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600,marginBottom:8}}>Something went wrong</div>
+            <p style={{fontSize:13,color:"#78716c",marginBottom:20}}>{msg}</p>
+            <button className="btn-primary" onClick={()=>{setStatus("idle");setMsg("");setProg(0);}}>Try Again</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── EXAMPLES MODAL ───────────────────────────────────────────────────────────
+function ExamplesModal({onUse,onClose}){
+  const [sel,setSel]=useState(0);
+  const [tmpl,setTmpl]=useState("classic");
+  const ex=EXAMPLE_RESUMES[sel];
+  const RC=tmpl==="classic"?ClassicResume:ModernResume;
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:998,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="slide-in" style={{background:"#fafaf9",borderRadius:20,width:"100%",maxWidth:900,maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+
+        {/* Header */}
+        <div style={{padding:"20px 28px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"white"}}>
+          <div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700}}>Example Resumes</div>
+            <p style={{fontSize:13,color:"#78716c",marginTop:2}}>See what your resume could look like. Use one as a starting point!</p>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:26,color:"#78716c",cursor:"pointer"}}>×</button>
+        </div>
+
+        <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+          {/* Sidebar */}
+          <div style={{width:220,borderRight:"1px solid var(--border)",padding:16,overflowY:"auto",background:"white",flexShrink:0}}>
+            <p style={{fontSize:10.5,fontWeight:700,color:"#a8a29e",letterSpacing:1,marginBottom:12}}>PROFILES</p>
+            {EXAMPLE_RESUMES.map((ex,i)=>(
+              <button key={i} onClick={()=>setSel(i)} style={{width:"100%",textAlign:"left",padding:"12px 14px",borderRadius:10,marginBottom:8,border:`1.5px solid ${sel===i?ex.color:"transparent"}`,background:sel===i?ex.bg:"transparent",cursor:"pointer"}}>
+                <div style={{fontSize:22,marginBottom:4}}>{ex.emoji}</div>
+                <div style={{fontSize:13,fontWeight:600,color:sel===i?ex.color:"#1c1917"}}>{ex.label}</div>
+                <div style={{fontSize:11,color:"#78716c",marginTop:2}}>{ex.data.name}</div>
+              </button>
+            ))}
+            <div style={{marginTop:16,padding:12,background:"#f5f0e8",borderRadius:10}}>
+              <p style={{fontSize:10.5,fontWeight:700,color:"#78716c",marginBottom:8}}>TEMPLATE</p>
+              {["classic","modern"].map(t=>(
+                <button key={t} onClick={()=>setTmpl(t)} style={{width:"100%",padding:"7px 10px",marginBottom:6,borderRadius:7,fontSize:12,fontWeight:600,background:tmpl===t?"#1c1917":"white",color:tmpl===t?"white":"#44403c",border:"1.5px solid var(--border)",cursor:"pointer"}}>
+                  {t==="classic"?"Classic ATS":"Modern Edge"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div style={{flex:1,overflowY:"auto",padding:24,background:"#e8e3d9"}}>
+            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,.18)",borderRadius:4,overflow:"hidden"}}>
+              <RC data={ex.data}/>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:"16px 28px",borderTop:"1px solid var(--border)",background:"white",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:13,color:"#78716c"}}>Viewing: <strong style={{color:"#1c1917"}}>{ex.data.name}</strong> — {ex.label}</div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn-ghost" onClick={onClose}>Browse Manually</button>
+            <button className="btn-accent" onClick={()=>{onUse(ex.data);onClose();}}>Use This as Template →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+const STEPS=["Personal","Education","Experience","Skills","Export"];
+
+export default function ResumeBuilder(){
+  const [view,    setView]    = useState("landing");
+  const [step,    setStep]    = useState(0);
+  const [data,    setData]    = useState(defaultData);
+  const [template,setTmpl]   = useState("classic");
+  const [showUpload, setSU]   = useState(false);
+  const [showExamples, setSE] = useState(false);
+
+  const set=(k,v)=>setData(d=>({...d,[k]:v}));
+  const sn=(k,i,f,v)=>{const a=[...data[k]];a[i]={...a[i],[f]:v};setData(d=>({...d,[k]:a}));};
+  const add=(k,blank)=>setData(d=>({...d,[k]:[...d[k],blank]}));
+  const rem=(k,i)=>setData(d=>({...d,[k]:d[k].filter((_,j)=>j!==i)}));
+  const downloadPDF=()=>window.print();
+  const exportLI=()=>{
+    const txt=`📌 ${data.name||"Student"}\n${data.objective||""}\n\n🎓 Education\n${data.education.map(e=>`• ${e.degree} at ${e.school} (${e.year})`).join("\n")}\n\n💼 Experience\n${data.experience.map(e=>`• ${e.role} @ ${e.company} [${e.type}] — ${e.duration}`).join("\n")}\n\n🛠 Skills: ${data.skills.technical}\n\nGenerated with ResumeForge`;
+    navigator.clipboard.writeText(txt).then(()=>alert("📋 LinkedIn summary copied to clipboard!"));
+  };
+  const RC=template==="classic"?ClassicResume:template==="modern"?ModernResume:()=><PremiumLocked name={TEMPLATES.find(t=>t.id===template)?.name}/>;
+
+  if(view==="landing") return (
+    <>
+      <GlobalStyles/>
+      <LandingPage onStart={()=>setView("builder")} onExamples={()=>setSE(true)} onUpload={()=>{setView("builder");setTimeout(()=>setSU(true),80);}}/>
+      {showExamples&&<ExamplesModal onUse={d=>{setData(d);setView("builder");}} onClose={()=>setSE(false)}/>}
+    </>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--cream)"}}>
+      <GlobalStyles/>
+      {showUpload&&<AIUploader onImport={d=>{setData(d);setStep(0);setSU(false);}} onClose={()=>setSU(false)}/>}
+      {showExamples&&<ExamplesModal onUse={d=>{setData(d);setStep(0);setSE(false);}} onClose={()=>setSE(false)}/>}
+
+      {/* Nav */}
+      <nav style={{background:"var(--charcoal)",padding:"0 20px",display:"flex",alignItems:"center",justifyContent:"space-between",height:54,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={()=>setView("landing")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:"#f5f0e8",fontWeight:700}}>ResumeForge</span>
+          <span className="mono" style={{fontSize:10,color:"#dc2626"}}>STUDENTS</span>
+        </button>
+        <div style={{display:"flex",gap:7}}>
+          <button onClick={()=>setSU(true)} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",color:"#e7e2d8",padding:"6px 13px",borderRadius:7,fontSize:12,fontWeight:600}}>🤖 Import Resume</button>
+          <button onClick={()=>setSE(true)} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.14)",color:"#e7e2d8",padding:"6px 13px",borderRadius:7,fontSize:12,fontWeight:600}}>👁 Examples</button>
+          <button className="btn-ghost" style={{color:"#e7e2d8",borderColor:"#44403c",padding:"5px 12px",fontSize:12}} onClick={exportLI}>in LinkedIn</button>
+          <button className="btn-accent" style={{padding:"5px 12px",fontSize:12}} onClick={downloadPDF}>↓ PDF</button>
+        </div>
+      </nav>
+
+      <div style={{display:"grid",gridTemplateColumns:"420px 1fr",minHeight:"calc(100vh - 54px)"}}>
+        {/* LEFT */}
+        <div style={{background:"var(--warm-white)",borderRight:"1px solid var(--border)",overflowY:"auto",maxHeight:"calc(100vh - 54px)"}}>
+          {/* Import Banner */}
+          <div style={{margin:"14px 14px 0",padding:"13px 16px",background:"linear-gradient(135deg,#1c1917,#3c3633)",borderRadius:12,cursor:"pointer"}} onClick={()=>setSU(true)}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:"white",marginBottom:2}}>🤖 Import Existing Resume</div>
+                <div style={{fontSize:11,color:"#a8a29e"}}>Upload PDF or DOCX — AI fills all fields automatically</div>
+              </div>
+              <span style={{color:"#dc2626",fontSize:18}}>→</span>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div style={{padding:"14px 18px 0",borderBottom:"1px solid var(--border)",marginTop:12}}>
+            <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+              {STEPS.map((s,i)=>(
+                <button key={s} onClick={()=>setStep(i)} style={{padding:"4px 11px",borderRadius:100,fontSize:11,fontWeight:600,border:"none",background:step===i?"var(--charcoal)":"var(--border)",color:step===i?"white":"var(--mid)",cursor:"pointer",transition:"all .2s"}}>
+                  {i+1}. {s}
+                </button>
+              ))}
+            </div>
+            <div style={{height:3,background:"var(--border)",borderRadius:100,marginBottom:-1}}>
+              <div style={{height:"100%",width:`${((step+1)/STEPS.length)*100}%`,background:"var(--accent)",borderRadius:100,transition:"width .4s ease"}}/>
+            </div>
+          </div>
+
+          <div style={{padding:18}} className="fade-up" key={step}>
+            {step===0&&<PersonalStep data={data} set={set}/>}
+            {step===1&&<EducationStep data={data} sn={sn} add={add} rem={rem}/>}
+            {step===2&&<ExperienceStep data={data} sn={sn} add={add} rem={rem}/>}
+            {step===3&&<SkillsStep data={data} set={set}/>}
+            {step===4&&<ExportStep template={template} setTemplate={setTmpl} onDownload={downloadPDF} onLinkedIn={exportLI}/>}
+          </div>
+
+          {step<4&&(
+            <div style={{padding:"0 18px 18px",display:"flex",justifyContent:"space-between"}}>
+              <button className="btn-ghost" onClick={()=>setStep(s=>Math.max(0,s-1))} style={{visibility:step===0?"hidden":"visible"}}>← Back</button>
+              <button className="btn-primary" onClick={()=>setStep(s=>Math.min(4,s+1))}>{step===3?"Preview & Export →":"Next →"}</button>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: Live Preview */}
+        <div style={{overflowY:"auto",maxHeight:"calc(100vh - 54px)",background:"#e8e3d9",padding:24}}>
+          <div style={{maxWidth:680,margin:"0 auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div>
+                <p className="mono" style={{fontSize:10,color:"#78716c"}}>LIVE PREVIEW</p>
+                <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:"#1c1917",marginTop:2}}>Your Resume</h2>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                {TEMPLATES.slice(0,2).map(t=>(
+                  <button key={t.id} onClick={()=>setTmpl(t.id)} style={{padding:"5px 13px",fontSize:11,fontWeight:600,background:template===t.id?"var(--charcoal)":"white",color:template===t.id?"white":"var(--mid)",border:"1.5px solid var(--border)",borderRadius:7,cursor:"pointer"}}>{t.name}</button>
+                ))}
+              </div>
+            </div>
+            <div id="resume-preview" style={{boxShadow:"0 8px 48px rgba(0,0,0,.18)",borderRadius:4,overflow:"hidden"}}>
+              <RC data={data}/>
+            </div>
+            <ATSScore data={data}/>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
+function LandingPage({onStart,onExamples,onUpload}){
+  return (
+    <div style={{minHeight:"100vh",background:"#0f0d0b",color:"#f5f0e8",fontFamily:"'Outfit',sans-serif",overflowX:"hidden"}}>
+      <div style={{position:"fixed",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)",backgroundSize:"64px 64px",pointerEvents:"none"}}/>
+
+      {/* Nav */}
+      <nav style={{padding:"20px 48px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"relative",zIndex:10}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700}}>
+          ResumeForge <span className="mono" style={{fontSize:10,color:"#dc2626",letterSpacing:1}}>FOR STUDENTS</span>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <button onClick={onExamples} style={{background:"none",border:"1px solid #44403c",color:"#a8a29e",padding:"8px 18px",borderRadius:8,fontSize:13,fontWeight:500,cursor:"pointer"}}>See Examples</button>
+          <button className="btn-accent" onClick={onStart} style={{padding:"9px 22px"}}>Build My Resume →</button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <div style={{maxWidth:860,margin:"0 auto",padding:"52px 48px 28px",textAlign:"center",position:"relative",zIndex:10}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(220,38,38,.1)",border:"1px solid rgba(220,38,38,.25)",borderRadius:100,padding:"5px 16px",marginBottom:26}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#dc2626",display:"inline-block"}}/>
+          <span className="mono" style={{fontSize:10.5,letterSpacing:1,color:"#fca5a5"}}>ATS-OPTIMIZED · FREE · AI-POWERED</span>
+        </div>
+        <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(46px,8vw,82px)",fontWeight:700,lineHeight:1.0,marginBottom:22,letterSpacing:-1}}>
+          Land Your Dream<br/><span style={{color:"#dc2626",fontStyle:"italic"}}>Internship.</span>
+        </h1>
+        <p style={{fontSize:17,color:"#a8a29e",maxWidth:540,margin:"0 auto 36px",lineHeight:1.7}}>
+          Fill a form or upload your existing resume — get a polished, recruiter-ready resume in under 5 minutes.
+        </p>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+          <button className="btn-accent" style={{padding:"15px 32px",fontSize:16}} onClick={onStart}>Start from Scratch — Free</button>
+          <button onClick={onUpload} style={{background:"rgba(255,255,255,.06)",border:"1.5px solid rgba(255,255,255,.12)",color:"#e7e2d8",padding:"15px 26px",borderRadius:8,fontSize:16,fontWeight:600,cursor:"pointer"}}>
+            🤖 Import Existing Resume
+          </button>
+          <button onClick={onExamples} style={{background:"transparent",border:"1.5px solid #44403c",color:"#a8a29e",padding:"15px 22px",borderRadius:8,fontSize:16,fontWeight:500,cursor:"pointer"}}>
+            See Examples ↓
+          </button>
+        </div>
+      </div>
+
+      {/* AI Import Highlight */}
+      <div style={{maxWidth:800,margin:"0 auto 56px",padding:"0 48px",position:"relative",zIndex:10}}>
+        <div style={{background:"linear-gradient(135deg,rgba(220,38,38,.08),rgba(220,38,38,.02))",border:"1px solid rgba(220,38,38,.2)",borderRadius:20,padding:"28px 32px",display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{fontSize:50}}>🤖</div>
+          <div style={{flex:1,minWidth:200}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:"#f5f0e8",marginBottom:8}}>Already have a resume? Import it.</div>
+            <p style={{fontSize:14,color:"#a8a29e",lineHeight:1.7,marginBottom:14}}>
+              Upload your old PDF or Word doc. Our AI reads every section — experience, education, skills — and instantly transforms it into a beautiful, ATS-ready resume. No re-typing needed.
+            </p>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              {["Reads PDF & DOCX","Extracts all sections","Auto-fills every field","Keeps your content"].map(t=>(
+                <span key={t} style={{padding:"4px 11px",background:"rgba(255,255,255,.06)",borderRadius:100,fontSize:11.5,color:"#d6d3d1"}}>✓ {t}</span>
+              ))}
+            </div>
+          </div>
+          <button onClick={onUpload} className="btn-accent" style={{padding:"12px 24px",flexShrink:0}}>Try AI Import →</button>
+        </div>
+      </div>
+
+      {/* Features */}
+      <div style={{maxWidth:920,margin:"0 auto",padding:"0 48px 80px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(185px,1fr))",gap:16,position:"relative",zIndex:10}}>
+        {[
+          {icon:"🎯",title:"ATS Friendly",desc:"Passes automated screening at top companies"},
+          {icon:"⚡",title:"Live Preview",desc:"Resume updates in real-time as you type"},
+          {icon:"📄",title:"PDF Download",desc:"Clean print-ready PDF, no watermarks"},
+          {icon:"💼",title:"Internship Focus",desc:"Purpose-built sections for students & interns"},
+          {icon:"🔗",title:"LinkedIn Export",desc:"Auto-format your LinkedIn summary"},
+          {icon:"✅",title:"ATS Score",desc:"Real-time score with improvement tips"},
+        ].map(f=>(
+          <div key={f.title} style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:14,padding:22,transition:"border-color .2s,transform .2s",cursor:"default"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(220,38,38,.3)";e.currentTarget.style.transform="translateY(-2px)";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,.07)";e.currentTarget.style.transform="none";}}>
+            <div style={{fontSize:26,marginBottom:9}}>{f.icon}</div>
+            <div style={{fontSize:14,fontWeight:600,color:"#f5f0e8",marginBottom:5}}>{f.title}</div>
+            <div style={{fontSize:12,color:"#78716c",lineHeight:1.6}}>{f.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA bar */}
+      <div style={{background:"#dc2626",padding:"26px 48px",textAlign:"center",position:"relative",zIndex:10}}>
+        <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600,marginRight:24}}>Join 50,000+ students who got hired</span>
+        <button onClick={onStart} style={{background:"white",color:"#dc2626",border:"none",padding:"10px 28px",borderRadius:8,fontWeight:700,fontSize:14,cursor:"pointer"}}>Build My Resume Now →</button>
+      </div>
+    </div>
+  );
+}
